@@ -1,5 +1,6 @@
 package com.airbnb.mvrx
 
+import android.arch.lifecycle.LifecycleOwner
 import android.os.Bundle
 import android.support.v4.app.Fragment
 
@@ -11,11 +12,16 @@ import android.support.v4.app.Fragment
 abstract class BaseMvRxFragment : Fragment(), MvRxView {
 
     override val mvrxViewModelStore by lazy { MvRxViewModelStore(viewModelStore) }
+    private var onCreateCalled = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         mvrxViewModelStore.restoreViewModels(this, savedInstanceState)
         super.onCreate(savedInstanceState)
+        onCreateCalled = true
     }
+
+    override val lifecycleOwner: LifecycleOwner
+        get() = if (onCreateCalled) this.viewLifecycleOwner else this
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)

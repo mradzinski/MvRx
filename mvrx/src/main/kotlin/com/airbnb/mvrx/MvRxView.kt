@@ -12,7 +12,7 @@ private val pendingInvalidates = HashSet<Int>()
 private val handler = Handler(Looper.getMainLooper(), Handler.Callback { message ->
     val view = message.obj as MvRxView
     pendingInvalidates.remove(System.identityHashCode(view))
-    if (view.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) view.invalidate()
+    if (view.lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) view.invalidate()
     true
 })
 
@@ -22,11 +22,16 @@ private val handler = Handler(Looper.getMainLooper(), Handler.Callback { message
  * When you get a ViewModel with fragmentViewModel, activityViewModel, or existingViewModel, it
  * will automatically subscribe to all state changes in the ViewModel and call [invalidate].
  */
-interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
+interface MvRxView : MvRxViewModelStoreOwner {
     /**
      * Override this to handle any state changes from MvRxViewModels created through MvRx Fragment delegates.
      */
     fun invalidate()
+
+    /**
+     * The [LifecycleOwner] to use when making new subscriptions.
+     */
+    val lifecycleOwner : LifecycleOwner
 
     fun postInvalidate() {
         if (pendingInvalidates.add(System.identityHashCode(this@MvRxView))) {
@@ -44,7 +49,7 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
      *
      * Default: false.
      */
-    fun <S : MvRxState> BaseMvRxViewModel<S>.subscribe(uniqueOnly: Boolean = false, subscriber: (S) -> Unit) = subscribe(this@MvRxView, uniqueOnly, subscriber)
+    fun <S : MvRxState> BaseMvRxViewModel<S>.subscribe(uniqueOnly: Boolean = false, subscriber: (S) -> Unit) = subscribe(this@MvRxView.lifecycleOwner, uniqueOnly, subscriber)
 
     /**
      * Subscribes to state changes for only a specific property and calls the subscribe with
@@ -61,7 +66,7 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
         prop1: KProperty1<S, A>,
         uniqueOnly: Boolean = false,
         subscriber: (A) -> Unit
-    ) = selectSubscribe(this@MvRxView, prop1, uniqueOnly, subscriber)
+    ) = selectSubscribe(this@MvRxView.lifecycleOwner, prop1, uniqueOnly, subscriber)
 
     /**
      * Subscribe to changes in an async property. There are optional parameters for onSuccess
@@ -79,7 +84,7 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
         uniqueOnly: Boolean = false,
         onFail: ((Throwable) -> Unit)? = null,
         onSuccess: ((T) -> Unit)? = null
-    ) = asyncSubscribe(this@MvRxView, asyncProp, uniqueOnly, onFail, onSuccess)
+    ) = asyncSubscribe(this@MvRxView.lifecycleOwner, asyncProp, uniqueOnly, onFail, onSuccess)
 
     /**
      * Subscribes to state changes for two properties.
@@ -96,7 +101,7 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
         prop2: KProperty1<S, B>,
         uniqueOnly: Boolean = false,
         subscriber: (A, B) -> Unit
-    ) = selectSubscribe(this@MvRxView, prop1, prop2, uniqueOnly, subscriber)
+    ) = selectSubscribe(this@MvRxView.lifecycleOwner, prop1, prop2, uniqueOnly, subscriber)
 
     /**
      * Subscribes to state changes for three properties.
@@ -114,7 +119,7 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
         prop3: KProperty1<S, C>,
         uniqueOnly: Boolean = false,
         subscriber: (A, B, C) -> Unit
-    ) = selectSubscribe(this@MvRxView, prop1, prop2, prop3, uniqueOnly, subscriber)
+    ) = selectSubscribe(this@MvRxView.lifecycleOwner, prop1, prop2, prop3, uniqueOnly, subscriber)
 
     /**
      * Subscribes to state changes for four properties.
@@ -133,5 +138,5 @@ interface MvRxView : MvRxViewModelStoreOwner, LifecycleOwner {
         prop4: KProperty1<S, D>,
         uniqueOnly: Boolean = false,
         subscriber: (A, B, C, D) -> Unit
-    ) = selectSubscribe(this@MvRxView, prop1, prop2, prop3, prop4, uniqueOnly, subscriber)
+    ) = selectSubscribe(this@MvRxView.lifecycleOwner, prop1, prop2, prop3, prop4, uniqueOnly, subscriber)
 }
