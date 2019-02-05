@@ -55,6 +55,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
     implementation "com.android.support:appcompat-v7:$supportLibVersion"
     implementation "android.arch.lifecycle:extensions:$lifecycleVersion"
+    api "com.bluelinelabs:conductor:$conductorVersion"
     kapt "android.arch.lifecycle:compiler:$lifecycleVersion"
     implementation 'io.reactivex.rxjava2:rxandroid:2.0.2'
     api "io.reactivex.rxjava2:rxjava:2.2.0"

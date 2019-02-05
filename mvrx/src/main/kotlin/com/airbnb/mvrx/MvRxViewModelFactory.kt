@@ -3,6 +3,7 @@ package com.airbnb.mvrx
 import android.app.Application
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
+import com.bluelinelabs.conductor.Controller
 
 /**
  * Implement this on your ViewModel's companion object for hooks into state creation and ViewModel creation. For example, if you need access
@@ -100,4 +101,19 @@ class FragmentViewModelContext(
      */
     @Suppress("UNCHECKED_CAST")
     fun <F : Fragment> fragment(): F = fragment as F
+}
+
+class ControllerViewModelContext(
+        override val activity: FragmentActivity,
+        override val args: Any?,
+        /**
+         * The controller owner of the ViewModel.
+         */
+        val controller: Controller
+) : ViewModelContext() {
+    /**
+     * Convenience method to type [Controller].
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <C : Controller> controller(): C = controller as C
 }

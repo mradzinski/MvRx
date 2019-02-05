@@ -9,6 +9,7 @@ buildscript {
     ext.retrofitVersion = '2.4.0'
     ext.navVersion = '1.0.0-alpha08'
     ext.roomVersion = '1.1.1'
+    ext.conductorVersion = '3.0.0-rc1'
     ext.buildToolsVersion = '28.0.3'
 
     repositories {

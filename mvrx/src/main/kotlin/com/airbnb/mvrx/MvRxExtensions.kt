@@ -5,6 +5,7 @@ import android.support.annotation.RestrictTo
 import android.support.annotation.RestrictTo.Scope.LIBRARY
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
+import com.bluelinelabs.conductor.Controller
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
@@ -27,6 +28,27 @@ inline fun <T, reified VM : BaseMvRxViewModel<S>, reified S : MvRxState> T.fragm
 ) where T : Fragment, T : MvRxView = lifecycleAwareLazy(this) {
     MvRxViewModelProvider.get(viewModelClass.java, S::class.java, FragmentViewModelContext(this.requireActivity(), _fragmentArgsProvider(), this), keyFactory())
         .apply { subscribe(this@fragmentViewModel, subscriber = { postInvalidate() }) }
+}
+
+/**
+ * Gets or creates a ViewModel scoped to this Controller. You will get the same instance every time for this Controller, even
+ * through rotation, or other configuration changes.
+ *
+ * If the ViewModel has additional dependencies, implement [MvRxViewModelFactory] in its companion object.
+ * You will be given the initial state as well as an Activity with which you can access other dependencies to
+ * pass to the ViewModel's constructor.
+ *
+ * MvRx will also handle persistence across process restarts. Refer to [PersistState] for more info.
+ *
+ * Use [keyFactory] if you have multiple ViewModels of the same class in the same scope.
+ */
+inline fun <T, reified VM : BaseMvRxViewModel<S>, reified S : MvRxState> T.controllerViewModel(
+        viewModelClass: KClass<VM> = VM::class,
+        crossinline keyFactory: () -> String = { viewModelClass.java.name }
+) where T : Controller, T : MvRxView = lifecycleAwareLazy(this) {
+    if (this.activity == null) throw IllegalStateException("Attempted to attach a ViewModel to a Controller, but the Controller wasn't attached to any activity.")
+    MvRxViewModelProvider.get(viewModelClass.java, S::class.java, ControllerViewModelContext(this.activity as FragmentActivity, _controllerArgsProvider(), this), keyFactory())
+            .apply { subscribe(this@controllerViewModel, subscriber = { postInvalidate() }) }
 }
 
 /**
@@ -55,6 +77,19 @@ inline fun <T, reified VM : BaseMvRxViewModel<S>, reified S : MvRxState> T.activ
 }
 
 /**
+ * [fragmentViewModel] except scoped to the current Activity. Use this to share state between different Controllers.
+ */
+inline fun <T, reified VM : BaseMvRxViewModel<S>, reified S : MvRxState> T.activityViewModel(
+        viewModelClass: KClass<VM> = VM::class,
+        noinline keyFactory: () -> String = { viewModelClass.java.name }
+) where T : Controller, T : MvRxView = lifecycleAwareLazy(this) {
+    if (this.activity == null) throw IllegalStateException("Attempted to attach a ViewModel to a Controller, but the Controller wasn't attached to any activity.")
+    if (activity !is MvRxViewModelStoreOwner) throw IllegalArgumentException("Your Activity must be a MvRxViewModelStoreOwner!")
+    MvRxViewModelProvider.get(viewModelClass.java, S::class.java, ActivityViewModelContext(activity as FragmentActivity, _activityArgsProvider(keyFactory)), keyFactory())
+            .apply { subscribe(this@activityViewModel, subscriber = { postInvalidate() }) }
+}
+
+/**
  * For internal use only. Public for inline.
  *
  * Looks for [MvRx.KEY_ARG] on the arguments of the fragments.
@@ -62,6 +97,15 @@ inline fun <T, reified VM : BaseMvRxViewModel<S>, reified S : MvRxState> T.activ
 @Suppress("FunctionName")
 @RestrictTo(LIBRARY)
 fun <T : Fragment> T._fragmentArgsProvider(): Any? = arguments?.get(MvRx.KEY_ARG)
+
+/**
+ * For internal use only. Public for inline.
+ *
+ * Looks for [MvRx.KEY_ARG] on the arguments of the controllers.
+ */
+@Suppress("FunctionName")
+@RestrictTo(LIBRARY)
+fun <T : Controller> T._controllerArgsProvider(): Any? = args.get(MvRx.KEY_ARG)
 
 /**
  * For internal use only. Public for inline.
@@ -76,6 +120,27 @@ fun <T : Fragment> T._fragmentArgsProvider(): Any? = arguments?.get(MvRx.KEY_ARG
 inline fun <T : Fragment> T._activityArgsProvider(keyFactory: () -> String): Any? {
     val args: Any? = _fragmentArgsProvider()
     val activity = requireActivity()
+    if (activity is MvRxViewModelStoreOwner) {
+        activity.mvrxViewModelStore._saveActivityViewModelArgs(keyFactory(), args)
+    } else {
+        throw IllegalArgumentException("Your Activity must be a MvRxViewModelStoreOwner!")
+    }
+    return args
+}
+
+/**
+ * For internal use only. Public for inline.
+ *
+ * Looks for [MvRx.KEY_ARG] on the arguments of the controller receiver.
+ *
+ * Also adds the controller's MvRx args to the host Activity's [MvRxViewModelStore] so that they can be used to recreate initial state
+ * in a new process.
+ */
+@Suppress("FunctionName")
+@RestrictTo(LIBRARY)
+inline fun <T : Controller> T._activityArgsProvider(keyFactory: () -> String): Any? {
+    val args: Any? = _controllerArgsProvider()
+    val activity = activity ?: throw IllegalStateException("_activityArgsProvider null Activity")
     if (activity is MvRxViewModelStoreOwner) {
         activity.mvrxViewModelStore._saveActivityViewModelArgs(keyFactory(), args)
     } else {

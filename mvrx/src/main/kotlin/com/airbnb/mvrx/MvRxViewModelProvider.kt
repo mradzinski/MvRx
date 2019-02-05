@@ -1,9 +1,13 @@
 package com.airbnb.mvrx
 
+import android.arch.lifecycle.ViewModelProvider
 import android.arch.lifecycle.ViewModelProviders
+import android.arch.lifecycle.ViewModelStore
+import android.arch.lifecycle.ViewModelStoreOwner
 import android.support.annotation.RestrictTo
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
+import com.bluelinelabs.conductor.Controller
 import kotlin.reflect.full.primaryConstructor
 
 /**
@@ -34,6 +38,7 @@ object MvRxViewModelProvider {
         return when (viewModelContext) {
             is ActivityViewModelContext -> ViewModelProviders.of(viewModelContext.activity, factory)
             is FragmentViewModelContext -> ViewModelProviders.of(viewModelContext.fragment, factory)
+            is ControllerViewModelContext -> createControllerViewModelProvider(viewModelContext.controller, factory)
         }.get(key, viewModelClass)
     }
 
@@ -160,5 +165,14 @@ object MvRxViewModelProvider {
                     "\n 3) The ViewModel using the state must have a companion object implementing MvRxFactory with an initialState function " +
                     "that does not return null. "
             )
+    }
+
+
+    private fun createControllerViewModelProvider(controller: Controller, factory: ViewModelProvider.Factory): ViewModelProvider =
+            ViewModelProvider(createControllerViewModelStore(controller), factory)
+
+    private fun createControllerViewModelStore(controller: Controller): ViewModelStore {
+        if (controller is ViewModelStoreOwner) return controller.viewModelStore
+        throw IllegalStateException("The Controller does not implement ViewModelStoreOwner")
     }
 }

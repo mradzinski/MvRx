@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentActivity
 import com.airbnb.mvrx.MvRxViewModelProvider.createViewModel
+import com.bluelinelabs.conductor.Controller
 import kotlin.collections.set
 
 /**
@@ -80,12 +81,22 @@ class MvRxViewModelStore(private val viewModelStore: ViewModelStore) {
         restoreViewModels(map, fragment, savedInstanceState, args)
     }
 
+    fun restoreViewModels(controller: Controller, savedInstanceState: Bundle?) {
+        savedInstanceState ?: return
+        val args = controller.args.get(MvRx.KEY_ARG)
+        restoreViewModels(map, controller, savedInstanceState, args)
+    }
+
     internal fun restoreViewModels(map: MutableMap<String, ViewModel>, activity: FragmentActivity, savedInstanceState: Bundle?, ownerArgs: Any? = null) {
         restoreViewModels(activity, map, savedInstanceState, ownerArgs)
     }
 
     internal fun restoreViewModels(map: MutableMap<String, ViewModel>, fragment: Fragment, savedInstanceState: Bundle?, ownerArgs: Any? = null) {
         restoreViewModels(fragment, map, savedInstanceState, ownerArgs)
+    }
+
+    internal fun restoreViewModels(map: MutableMap<String, ViewModel>, controller: Controller, savedInstanceState: Bundle?, ownerArgs: Any? = null) {
+        restoreViewModels(controller, map, savedInstanceState, ownerArgs)
     }
 
     private fun <H> restoreViewModels(host: H, map: MutableMap<String, ViewModel>, savedInstanceState: Bundle?, ownerArgs: Any? = null) {
@@ -107,7 +118,8 @@ class MvRxViewModelStore(private val viewModelStore: ViewModelStore) {
             map[key] = when (host) {
                 is Fragment -> restoreViewModel(host, holder, arguments)
                 is FragmentActivity -> restoreViewModel(host, holder, arguments)
-                else -> throw IllegalStateException("Host: $host is expected to be either Fragment or FragmentActivity.")
+                is Controller -> restoreViewModel(host, holder, arguments)
+                else -> throw IllegalStateException("Host: $host is expected to be either Fragment, a Controller or FragmentActivity.")
             }
         }
     }
@@ -127,6 +139,16 @@ class MvRxViewModelStore(private val viewModelStore: ViewModelStore) {
     private fun restoreViewModel(fragment: Fragment, holder: MvRxPersistedViewModelHolder, arguments: Any?): ViewModel {
         val (viewModelClass, stateClass, viewModelState) = holder
         return createViewModel(viewModelClass, stateClass, FragmentViewModelContext(fragment.requireActivity(), arguments, fragment), viewModelState::restorePersistedState)
+    }
+
+    private fun restoreViewModel(controller: Controller, holder: MvRxPersistedViewModelHolder, arguments: Any?): ViewModel {
+        return controller.activity?.let {
+            val context = ControllerViewModelContext(controller.activity as FragmentActivity, arguments, controller)
+            val (viewModelClass, stateClass, viewModelState) = holder
+
+            createViewModel(viewModelClass, stateClass, context, viewModelState::restorePersistedState)
+        } ?: throw IllegalStateException("Attempted to restore a ViewModel on a Controller, " +
+                "but the Controller has no activity attached to it")
     }
 
     /**
