@@ -12,15 +12,15 @@ package com.airbnb.mvrx.sample
 
 import android.util.Log
 import com.airbnb.mvrx.Async
-import com.airbnb.mvrx.Loading
 import com.airbnb.mvrx.MvRxState
+import com.airbnb.mvrx.Success
 import com.airbnb.mvrx.Uninitialized
 import com.airbnb.mvrx.sample.core.MvRxViewModel
-import io.reactivex.Single
+import io.reactivex.Observable
 import io.reactivex.schedulers.Schedulers
 import java.util.concurrent.TimeUnit
 
-data class TestState(val request: Async<String> = Uninitialized, val value: String = "This is a controller test"): MvRxState
+data class TestState(val request: Async<String> = Uninitialized, val value: String = ""): MvRxState
 
 class MainViewModel(initialState: TestState) : MvRxViewModel<TestState>(initialState) {
 
@@ -29,13 +29,11 @@ class MainViewModel(initialState: TestState) : MvRxViewModel<TestState>(initialS
     }
 
     fun fetchTest() = withState { state ->
-
-        if (state.request is Loading) return@withState
-
-        Single.just("Hello World")
+        Observable.just("Hello world!")
+                .delay(2000, TimeUnit.MILLISECONDS)
                 .subscribeOn(Schedulers.io())
-                .delaySubscription(2000, TimeUnit.MILLISECONDS)
-                .doOnDispose { Log.e("MainViewModel", "Disposing test") }
+                .doOnSubscribe { setState { copy(request = Success(""), value = "Warming up...") } }
+                .doFinally { Log.e("MainViewModel", "Disposing test") }
                 .execute { result ->
                     copy(request = result, value = result.invoke() ?: "")
                 }
@@ -43,6 +41,6 @@ class MainViewModel(initialState: TestState) : MvRxViewModel<TestState>(initialS
 
     override fun onCleared() {
         super.onCleared()
-        Log.e("MainViewModel", "Clearing the shit out of this VM")
+        Log.e("MainViewModel", "Clearing out of this VM")
     }
 }

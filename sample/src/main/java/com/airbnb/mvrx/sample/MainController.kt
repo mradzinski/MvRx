@@ -36,6 +36,7 @@ class MainController(args: Bundle? = null) : BaseMvRxController(args) {
 
     override fun invalidate() {
         withState(viewModel) { state ->
+            Log.e("MainController", state.toString())
             view?.findViewById<TextView>(R.id.textViewTest)?.apply {
                 text = state.value
             }
